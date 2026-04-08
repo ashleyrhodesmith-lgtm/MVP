@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { supabase } from '@/lib/supabase'
 
 const CATEGORIES = ['D2C Skincare', 'D2C Fitness', 'D2C Food', 'D2C Fashion', 'D2C Home', 'Consumer App', 'Agency', 'Other']
 const NICHES = ['Skincare', 'Fitness', 'Food', 'Fashion', 'Tech', 'Travel', 'Finance', 'Parenting', 'Gaming', 'Other']
@@ -82,9 +83,13 @@ export default function IntakeForm({ onSubmit }: IntakeFormProps) {
     setLoading(true)
     setError('')
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch('/api/submit-intake', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           brand_name: brandName,
           category,
