@@ -14,30 +14,37 @@ export default function AuthCompletePage() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
 
-      const role = localStorage.getItem('creatr_role') || 'brand'
-      const user = session.user
-
       const { data: existing } = await supabase
         .from('profiles')
         .select('id, role')
-        .eq('id', user.id)
+        .eq('id', session.user.id)
         .single()
 
-      if (!existing) {
+      if (existing) {
+        // Profile exists — use stored role, ignore localStorage
+        localStorage.removeItem('creatr_role')
+        if (existing.role === 'brand' || existing.role === 'admin') {
+          router.push('/')
+        } else {
+          router.push('/creator-welcome')
+        }
+      } else {
+        // New user — create profile from localStorage role
+        const role = localStorage.getItem('creatr_role') || 'brand'
         await supabase.from('profiles').insert({
-          id: user.id,
+          id: session.user.id,
           role,
-          email: user.email,
-          name: user.user_metadata?.full_name || user.email,
+          email: session.user.email,
+          name: session.user.user_metadata?.full_name || session.user.email,
           plan: 'free',
         })
+        localStorage.removeItem('creatr_role')
+        if (role === 'brand' || role === 'admin') {
+          router.push('/')
+        } else {
+          router.push('/creator-welcome')
+        }
       }
-
-      const finalRole = existing?.role || role
-      localStorage.removeItem('creatr_role')
-
-      if (finalRole === 'brand') router.push('/')
-      else router.push('/creator-welcome')
     }
 
     finish()
