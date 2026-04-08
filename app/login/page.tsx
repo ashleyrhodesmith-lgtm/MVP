@@ -14,20 +14,26 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
 
-    localStorage.setItem('creatr_role', selectedRole)
+    try {
+      localStorage.setItem('creatr_role', selectedRole)
 
-    console.log('Starting OAuth with role:', selectedRole)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account',
+          },
+        },
+      })
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
-    })
-
-    if (error) {
-      console.error('OAuth error:', error.message)
-      setError(error.message)
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
       setLoading(false)
     }
   }
