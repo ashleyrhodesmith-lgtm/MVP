@@ -7,18 +7,31 @@ import { Building2, User } from 'lucide-react'
 export default function LoginPage() {
   const [selectedRole, setSelectedRole] = useState<'brand' | 'creator' | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleGoogleLogin() {
     if (!selectedRole) return
     setLoading(true)
+    setError(null)
+
     localStorage.setItem('creatr_role', selectedRole)
-    await supabase.auth.signInWithOAuth({
+
+    const redirectTo =
+      typeof window !== 'undefined'
+        ? window.location.origin + '/auth/callback'
+        : 'http://localhost:3000/auth/callback'
+
+    console.log('Starting OAuth with role:', selectedRole)
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: window.location.origin + '/auth/callback',
-      },
+      options: { redirectTo },
     })
-    setLoading(false)
+
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    }
   }
 
   return (
@@ -43,7 +56,6 @@ export default function LoginPage() {
         </p>
 
         <div className="flex gap-3">
-          {/* Brand card */}
           <button
             onClick={() => setSelectedRole('brand')}
             className={[
@@ -60,7 +72,6 @@ export default function LoginPage() {
             <span className="text-xs text-[#888888]">Find creators</span>
           </button>
 
-          {/* Creator card */}
           <button
             onClick={() => setSelectedRole('creator')}
             className={[
@@ -83,8 +94,12 @@ export default function LoginPage() {
           disabled={!selectedRole || loading}
           className="w-full bg-white text-black text-sm font-medium py-3 rounded-xl mt-6 transition-opacity disabled:opacity-50 hover:opacity-90"
         >
-          Continue with Google
+          {loading ? 'Redirecting…' : 'Continue with Google'}
         </button>
+
+        {error && (
+          <p className="text-xs text-[#F87171] text-center mt-3">{error}</p>
+        )}
 
         <p className="text-xs text-[#888888] text-center mt-3">
           By continuing you agree to our terms.
