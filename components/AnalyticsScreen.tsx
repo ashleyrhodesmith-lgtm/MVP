@@ -1,374 +1,218 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { TrendingUp } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
-const creators = [
-  {
-    rank: 1,
-    name: "Priya Sharma",
-    niche: "Skincare",
-    region: "Mumbai",
-    score: 94,
-    performance: 96,
-    consistency: 95,
-    contentQuality: 92,
-    workability: 98,
-    growthTrajectory: 89,
-    totalViews: "284K",
-    campaigns: 4,
-    trend: "up"
-  },
-  {
-    rank: 2,
-    name: "Arjun Mehta",
-    niche: "Fitness",
-    region: "Delhi",
-    score: 88,
-    performance: 90,
-    consistency: 88,
-    contentQuality: 85,
-    workability: 92,
-    growthTrajectory: 86,
-    totalViews: "198K",
-    campaigns: 3,
-    trend: "up"
-  },
-  {
-    rank: 3,
-    name: "Sneha Kapoor",
-    niche: "Food",
-    region: "Bangalore",
-    score: 82,
-    performance: 80,
-    consistency: 85,
-    contentQuality: 88,
-    workability: 79,
-    growthTrajectory: 78,
-    totalViews: "142K",
-    campaigns: 3,
-    trend: "up"
-  },
-  {
-    rank: 4,
-    name: "Rohan Das",
-    niche: "Tech",
-    region: "Hyderabad",
-    score: 74,
-    performance: 72,
-    consistency: 78,
-    contentQuality: 70,
-    workability: 80,
-    growthTrajectory: 68,
-    totalViews: "98K",
-    campaigns: 2,
-    trend: "down"
-  },
-  {
-    rank: 5,
-    name: "Ananya Singh",
-    niche: "Fashion",
-    region: "Pune",
-    score: 69,
-    performance: 65,
-    consistency: 72,
-    contentQuality: 74,
-    workability: 68,
-    growthTrajectory: 64,
-    totalViews: "76K",
-    campaigns: 2,
-    trend: "down"
-  },
-  {
-    rank: 6,
-    name: "Karan Patel",
-    niche: "Travel",
-    region: "Jaipur",
-    score: 61,
-    performance: 58,
-    consistency: 64,
-    contentQuality: 62,
-    workability: 65,
-    growthTrajectory: 55,
-    totalViews: "54K",
-    campaigns: 1,
-    trend: "down"
-  }
-];
+interface Creator {
+  id: string
+  name: string
+  niche: string
+  city: string
+  instagram_handle: string
+  follower_count: number
+  score_total: number
+  score_niche_consistency: number
+  score_engagement: number
+  score_consistency: number
+  score_growth: number
+  score_workability: number
+  score_content_quality: number
+}
 
 function getInitials(name: string) {
-  return name.split(' ').map(n => n[0]).join('');
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function formatFollowers(n: number): string {
+  if (!n) return '—'
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(0)}K`
+  return String(n)
 }
 
 function getDimensionBarColor(score: number) {
-  if (score >= 90) return '#4ADE80';
-  if (score >= 70) return '#FFFFFF';
-  return '#FACC15';
+  if (score >= 90) return '#4ADE80'
+  if (score >= 70) return '#FFFFFF'
+  return '#FACC15'
 }
 
 export default function AnalyticsScreen() {
-  const [selectedRank, setSelectedRank] = useState(1);
-  const selected = creators.find(c => c.rank === selectedRank) ?? creators[0];
+  const [creators, setCreators] = useState<Creator[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  const dimensions = [
-    { label: 'Performance', value: selected.performance },
-    { label: 'Consistency', value: selected.consistency },
-    { label: 'Content Quality', value: selected.contentQuality },
-    { label: 'Workability', value: selected.workability },
-    { label: 'Growth', value: selected.growthTrajectory },
-  ];
+  useEffect(() => {
+    async function fetch() {
+      const { data } = await supabase
+        .from('creators')
+        .select('*')
+        .eq('status', 'active')
+        .gte('score_total', 50)
+        .order('score_total', { ascending: false })
+      setCreators((data as Creator[]) || [])
+      if (data && data.length > 0) setSelectedId(data[0].id)
+      setLoading(false)
+    }
+    fetch()
+  }, [])
 
-  const stats = [
-    { label: 'Total Views', value: selected.totalViews },
-    { label: 'Campaigns', value: selected.campaigns },
-    { label: 'Avg Score', value: `${selected.score}/100` },
-    { label: 'Region', value: selected.region },
-  ];
+  const selected = creators.find(c => c.id === selectedId) ?? creators[0]
+
+  const dimensions = selected ? [
+    { label: 'Engagement',         value: selected.score_engagement },
+    { label: 'Niche Consistency',  value: selected.score_niche_consistency },
+    { label: 'Consistency',        value: selected.score_consistency },
+    { label: 'Growth',             value: selected.score_growth },
+    { label: 'Workability',        value: selected.score_workability },
+    { label: 'Content Quality',    value: selected.score_content_quality },
+  ] : []
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border border-[#333] border-t-white rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (creators.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm text-[#888888]">No creators in database yet.</p>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      {/* Page header */}
-      <h1 style={{
-        fontFamily: "'Cormorant Garamond', Georgia, serif",
-        fontSize: '1.875rem',
-        fontWeight: 300,
-        color: '#FFFFFF',
-        margin: '0 0 0.25rem 0',
-      }}>
+    <div className="p-8">
+      <h1
+        className="text-3xl font-light text-white mb-1"
+        style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
+      >
         Creator Leaderboard
       </h1>
-      <p style={{
-        fontSize: '0.875rem',
-        color: '#888888',
-        margin: '0 0 2rem 0',
-        fontFamily: "'Inter', system-ui, sans-serif",
-      }}>
+      <p className="text-sm text-[#888888] mb-8">
         CREATR Score ranks creators across performance, consistency, and workability
       </p>
 
-      {/* Two column layout */}
-      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
-
-        {/* LEFT PANEL — Leaderboard table */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Table header */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            padding: '0.5rem 1rem',
-            borderBottom: '1px solid #1F1F1F',
-          }}>
-            <span style={{ width: '2rem', fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>Rank</span>
-            <span style={{ flex: 1, fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>Creator</span>
-            <span style={{ width: '6rem', fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>CREATR Score</span>
-            <span style={{ width: '5rem', fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>Views</span>
-            <span style={{ width: '6rem', textAlign: 'center', fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>Campaigns</span>
-            <span style={{ width: '3rem', textAlign: 'center', fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: "'Inter', system-ui, sans-serif" }}>Trend</span>
+      <div className="flex gap-6 items-start">
+        {/* Left — table */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-center px-4 py-2 border-b border-[#1F1F1F]">
+            <span className="w-8 text-xs text-[#888888] uppercase tracking-wider">Rank</span>
+            <span className="flex-1 text-xs text-[#888888] uppercase tracking-wider">Creator</span>
+            <span className="w-24 text-xs text-[#888888] uppercase tracking-wider">Score</span>
+            <span className="w-20 text-xs text-[#888888] uppercase tracking-wider">Followers</span>
+            <span className="w-24 text-xs text-[#888888] uppercase tracking-wider">City</span>
           </div>
 
-          {/* Creator rows */}
-          {creators.map((creator) => {
-            const isSelected = creator.rank === selectedRank;
+          {creators.map((creator, i) => {
+            const isSelected = creator.id === selectedId
             return (
               <div
-                key={creator.rank}
-                onClick={() => setSelectedRank(creator.rank)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '1rem',
-                  borderBottom: '1px solid #1F1F1F',
-                  cursor: 'pointer',
-                  backgroundColor: isSelected ? '#111111' : 'transparent',
-                  transition: 'background-color 0.15s ease',
-                }}
-                onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = '#111'; }}
-                onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLDivElement).style.backgroundColor = 'transparent'; }}
+                key={creator.id}
+                onClick={() => setSelectedId(creator.id)}
+                className={[
+                  'flex items-center px-4 py-4 border-b border-[#1F1F1F] cursor-pointer transition-colors',
+                  isSelected ? 'bg-[#111111]' : 'hover:bg-[#0a0a0a]',
+                ].join(' ')}
               >
-                {/* Rank */}
-                <span style={{ width: '2rem', fontSize: '0.875rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>
-                  {creator.rank}
-                </span>
-
-                {/* Creator */}
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                  <div style={{
-                    width: '2rem', height: '2rem',
-                    backgroundColor: '#1F1F1F',
-                    borderRadius: '9999px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '0.75rem', color: '#FFFFFF',
-                    flexShrink: 0,
-                    fontFamily: "'Inter', system-ui, sans-serif",
-                  }}>
+                <span className="w-8 text-sm text-[#888888]">{i + 1}</span>
+                <div className="flex-1 flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-full bg-[#1F1F1F] flex items-center justify-center text-xs text-white shrink-0">
                     {getInitials(creator.name)}
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.875rem', color: '#FFFFFF', fontFamily: "'Inter', system-ui, sans-serif" }}>{creator.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>{creator.niche} · {creator.region}</div>
+                    <p className="text-sm text-white">{creator.name}</p>
+                    <p className="text-xs text-[#888888]">{creator.niche}</p>
                   </div>
                 </div>
-
-                {/* CREATR Score */}
-                <div style={{ width: '6rem' }}>
-                  <div style={{ fontSize: '1.125rem', fontWeight: 600, color: '#FFFFFF', fontFamily: "'Inter', system-ui, sans-serif" }}>{creator.score}</div>
-                  <div style={{ height: '2px', backgroundColor: '#1F1F1F', borderRadius: '9999px', marginTop: '4px' }}>
-                    <div style={{ height: '2px', backgroundColor: '#FFFFFF', borderRadius: '9999px', width: `${creator.score}%` }} />
+                <div className="w-24">
+                  <p className="text-sm font-semibold text-white">{creator.score_total ?? '—'}</p>
+                  <div className="h-0.5 bg-[#1F1F1F] rounded-full mt-1">
+                    <div
+                      className="h-0.5 bg-white rounded-full"
+                      style={{ width: `${creator.score_total ?? 0}%` }}
+                    />
                   </div>
                 </div>
-
-                {/* Views */}
-                <span style={{ width: '5rem', fontSize: '0.875rem', color: '#FFFFFF', fontFamily: "'Inter', system-ui, sans-serif" }}>{creator.totalViews}</span>
-
-                {/* Campaigns */}
-                <span style={{ width: '6rem', textAlign: 'center', fontSize: '0.875rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>{creator.campaigns}</span>
-
-                {/* Trend */}
-                <div style={{ width: '3rem', display: 'flex', justifyContent: 'center' }}>
-                  {creator.trend === 'up'
-                    ? <TrendingUp size={14} color="#4ADE80" />
-                    : <TrendingDown size={14} color="#F87171" />}
-                </div>
+                <span className="w-20 text-sm text-white">{formatFollowers(creator.follower_count)}</span>
+                <span className="w-24 text-sm text-[#888888]">{creator.city || '—'}</span>
               </div>
-            );
+            )
           })}
         </div>
 
-        {/* RIGHT PANEL — Creator detail */}
-        <div style={{
-          width: '20rem',
-          flexShrink: 0,
-          backgroundColor: '#111111',
-          border: '1px solid #1F1F1F',
-          borderRadius: '0.75rem',
-          padding: '1.5rem',
-          position: 'sticky',
-          top: 0,
-        }}>
-          {/* Avatar + name */}
-          <div style={{
-            width: '3rem', height: '3rem',
-            backgroundColor: '#1F1F1F',
-            borderRadius: '9999px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1rem', color: '#FFFFFF',
-            fontFamily: "'Inter', system-ui, sans-serif",
-          }}>
-            {getInitials(selected.name)}
-          </div>
-          <div style={{
-            fontFamily: "'Cormorant Garamond', Georgia, serif",
-            fontSize: '1.25rem',
-            fontWeight: 300,
-            color: '#FFFFFF',
-            marginTop: '0.75rem',
-          }}>
-            {selected.name}
-          </div>
-          <div style={{ fontSize: '0.875rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>
-            {selected.niche} · {selected.region}
-          </div>
+        {/* Right — detail panel */}
+        {selected && (
+          <div className="w-80 shrink-0 bg-[#111111] border border-[#1F1F1F] rounded-xl p-6 sticky top-0">
+            <div className="w-12 h-12 rounded-full bg-[#1F1F1F] flex items-center justify-center text-base text-white mb-3">
+              {getInitials(selected.name)}
+            </div>
+            <h2
+              className="text-xl font-light text-white"
+              style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
+            >
+              {selected.name}
+            </h2>
+            <p className="text-sm text-[#888888]">{selected.niche} · {selected.city}</p>
 
-          {/* CREATR Score hero */}
-          <div style={{ borderTop: '1px solid #1F1F1F', marginTop: '1rem', paddingTop: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
-              CREATR SCORE
-            </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-              <span style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontSize: '3rem',
-                fontWeight: 300,
-                color: '#FFFFFF',
-                lineHeight: 1,
-              }}>
-                {selected.score}
-              </span>
-              <span style={{ fontSize: '1.125rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>/100</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
-              {selected.trend === 'up' ? (
-                <>
-                  <TrendingUp size={12} color="#4ADE80" />
-                  <span style={{ fontSize: '0.75rem', color: '#4ADE80', fontFamily: "'Inter', system-ui, sans-serif" }}>Trending up</span>
-                </>
-              ) : (
-                <>
-                  <TrendingDown size={12} color="#F87171" />
-                  <span style={{ fontSize: '0.75rem', color: '#F87171', fontFamily: "'Inter', system-ui, sans-serif" }}>Needs attention</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Score Breakdown */}
-          <div style={{ borderTop: '1px solid #1F1F1F', marginTop: '1rem', paddingTop: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem', fontFamily: "'Inter', system-ui, sans-serif" }}>
-              Score Breakdown
-            </div>
-            {dimensions.map(({ label, value }) => (
-              <div key={label} style={{ marginBottom: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#FFFFFF', fontFamily: "'Inter', system-ui, sans-serif" }}>{label}</span>
-                  <span style={{ fontSize: '0.75rem', color: '#FFFFFF', fontWeight: 500, fontFamily: "'Inter', system-ui, sans-serif" }}>{value}</span>
-                </div>
-                <div style={{ height: '4px', backgroundColor: '#1F1F1F', borderRadius: '9999px' }}>
-                  <div style={{
-                    height: '4px',
-                    backgroundColor: getDimensionBarColor(value),
-                    borderRadius: '9999px',
-                    width: `${value}%`,
-                  }} />
-                </div>
+            {/* Score hero */}
+            <div className="border-t border-[#1F1F1F] mt-4 pt-4">
+              <p className="text-xs text-[#888888] uppercase tracking-wider mb-1">CREATR Score</p>
+              <div className="flex items-baseline gap-1">
+                <span
+                  className="text-5xl font-light text-white leading-none"
+                  style={{ fontFamily: "'Cormorant Garamond', Georgia, serif" }}
+                >
+                  {selected.score_total ?? '—'}
+                </span>
+                <span className="text-lg text-[#888888]">/100</span>
               </div>
-            ))}
-          </div>
+              <div className="flex items-center gap-1 mt-1">
+                <TrendingUp size={12} color="#4ADE80" />
+                <span className="text-xs text-[#4ADE80]">Active creator</span>
+              </div>
+            </div>
 
-          {/* Campaign Stats */}
-          <div style={{ borderTop: '1px solid #1F1F1F', marginTop: '1rem', paddingTop: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              {stats.map(({ label, value }) => (
-                <div key={label}>
-                  <div style={{ fontSize: '0.75rem', color: '#888888', fontFamily: "'Inter', system-ui, sans-serif" }}>{label}</div>
-                  <div style={{ fontSize: '0.875rem', color: '#FFFFFF', fontWeight: 500, marginTop: '0.125rem', fontFamily: "'Inter', system-ui, sans-serif" }}>{value}</div>
+            {/* Score breakdown */}
+            <div className="border-t border-[#1F1F1F] mt-4 pt-4">
+              <p className="text-xs text-[#888888] uppercase tracking-wider mb-4">Score Breakdown</p>
+              {dimensions.map(({ label, value }) => (
+                <div key={label} className="mb-3">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-xs text-white">{label}</span>
+                    <span className="text-xs text-white font-medium">{value ?? '—'}</span>
+                  </div>
+                  <div className="h-1 bg-[#1F1F1F] rounded-full">
+                    <div
+                      className="h-1 rounded-full"
+                      style={{
+                        width: `${value ?? 0}%`,
+                        backgroundColor: getDimensionBarColor(value ?? 0),
+                      }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
+
+            {/* Stats */}
+            <div className="border-t border-[#1F1F1F] mt-4 pt-4 grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-[#888888]">Followers</p>
+                <p className="text-sm text-white font-medium mt-0.5">{formatFollowers(selected.follower_count)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-[#888888]">City</p>
+                <p className="text-sm text-white font-medium mt-0.5">{selected.city || '—'}</p>
+              </div>
+            </div>
           </div>
-
-          {/* Action buttons */}
-          <button style={{
-            width: '100%',
-            backgroundColor: '#FFFFFF',
-            color: '#000000',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            padding: '0.625rem 0',
-            borderRadius: '0.5rem',
-            border: 'none',
-            cursor: 'pointer',
-            marginTop: '1.5rem',
-            fontFamily: "'Inter', system-ui, sans-serif",
-          }}>
-            Send Outreach
-          </button>
-          <button style={{
-            width: '100%',
-            backgroundColor: 'transparent',
-            color: '#888888',
-            fontSize: '0.875rem',
-            padding: '0.625rem 0',
-            borderRadius: '0.5rem',
-            border: '1px solid #1F1F1F',
-            cursor: 'pointer',
-            marginTop: '0.5rem',
-            fontFamily: "'Inter', system-ui, sans-serif",
-          }}>
-            View Reels
-          </button>
-        </div>
-
+        )}
       </div>
     </div>
-  );
+  )
 }
